@@ -4,447 +4,111 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Enhanced Video Player (HLS & MP4)</title>
-  <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      background: #000;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px 0;
-      font-family: Arial, sans-serif;
-      user-select: none;
-    }
-    .player-container {
-      position: relative;
-      width: 90%;
-      max-width: 1000px;
-      background: #111;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
-      padding: 15px;
-    }
-    .player-container.cursor-hidden {
-      cursor: none;
-    }
-    .player-container:-webkit-full-screen,
-    .player-container:fullscreen {
-      width: 100vw;
-      height: 100vh;
-      max-width: none;
-      padding: 0;
-      background: #000;
-      border-radius: 0;
-      box-shadow: none;
-      display: flex;
-      flex-direction: column;
-    }
-    video {
-      width: 100%;
-      border-radius: 10px;
-      background: #000;
-      display: block;
-      cursor: pointer;
-    }
-    .player-container:-webkit-full-screen video,
-    .player-container:fullscreen video {
-      width: 100%;
-      height: 100%;
-      border-radius: 0;
-      flex-grow: 1;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 10px;
-      color: #ccc;
-      width: 100%;
-      transition: opacity 0.3s ease;
-    }
-    .player-container:-webkit-full-screen .controls,
-    .player-container:fullscreen .controls {
-      position: absolute;
-      bottom: 15px;
-      left: 15px;
-      right: 15px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px 15px;
-      border-radius: 8px;
-      z-index: 10;
-    }
-    .controls.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .btn {
-      position: relative;
-      overflow: hidden;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.15);
-      border: none;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      transition: background 0.3s ease, transform 0.1s ease;
-    }
-    .btn:hover {
-      background: rgba(255, 255, 255, 0.25);
-      transform: scale(1.05);
-    }
-    .btn:focus {
-      outline: 2px solid #0f0;
-      outline-offset: 2px;
-    }
-    .btn:active {
-      transform: scale(0.95);
-    }
-    .ripple {
-      position: absolute;
-      border-radius: 50%;
-      transform: scale(0);
-      animation: ripple-animation 600ms linear;
-      background: rgba(255, 255, 255, 0.4);
-      pointer-events: none;
-    }
-    @keyframes ripple-animation {
-      to {
-        transform: scale(2);
-        opacity: 0;
-      }
-    }
-    svg {
-      fill: #fff;
-      width: 32px;
-      height: 32px;
-      pointer-events: none;
-      display: block;
-      margin: auto;
-    }
-    input[type="range"] {
-      -webkit-appearance: none;
-      appearance: none;
-      background: transparent;
-      cursor: pointer;
-    }
-    input[type="range"]:focus {
-      outline: 2px solid #0f0;
-      outline-offset: 2px;
-    }
-    input[type="range"].seekbar {
-      width: 100%;
-      height: 16px;
-    }
-    input[type="range"].seekbar::-webkit-slider-runnable-track { height: 8px; background: linear-gradient( to right, #22ff00 0%, #00cc00 var(--seekbar-fill, 0%), #555 var(--seekbar-fill, 0%), #555 100% ); border-radius: 4px; box-shadow: 0 0 4px rgba(0, 255, 0, 0.3); }
-    input[type="range"].seekbar::-moz-range-track { height: 8px; background: linear-gradient( to right, #22ff00 0%, #00cc00 var(--seekbar-fill, 0%), #555 var(--seekbar-fill, 0%), #555 100% ); border-radius: 4px; box-shadow: 0 0 4px rgba(0, 255, 0, 0.3); }
-    input[type="range"].seekbar::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: #22ff00; border-radius: 50%; margin-top: -5px; box-shadow: 0 0 8px #22ff00, 0 0 12px rgba(0, 255, 0, 0.5); transition: background 0.3s, transform 0.2s; }
-    input[type="range"].seekbar::-webkit-slider-thumb:hover { background: #66ff66; transform: scale(1.2); }
-    input[type="range"].seekbar::-moz-range-thumb { width: 18px; height: 18px; background: #22ff00; border: none; border-radius: 50%; box-shadow: 0 0 8px #22ff00, 0 0 12px rgba(0, 255, 0, 0.5); transition: background 0.3s, transform 0.2s; }
-    input[type="range"].seekbar::-moz-range-thumb:hover { background: #66ff66; transform: scale(1.2); }
-    .progress-container { flex-grow: 1; display: flex; align-items: center; gap: 8px; font-size: 14px; font-variant-numeric: tabular-nums; min-width: 0; }
-    .time { width: 60px; min-width: 60px; text-align: center; color: #ccc; padding: 0 5px; white-space: nowrap; }
-    .more-options-container { position: relative; }
-    .options-menu { position: absolute; bottom: 60px; right: 0; background: rgba(0, 0, 0, 0.9); border-radius: 8px; padding: 12px; width: 180px; z-index: 20; display: none; flex-direction: column; gap: 10px; box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); }
-    .options-menu.show { display: flex; }
-    .option { position: relative; padding: 8px 12px; color: #ccc; font-size: 14px; cursor: pointer; border-radius: 4px; transition: background 0.2s ease; }
-    .option:hover { background: rgba(255, 255, 255, 0.1); }
-    .volume-container { outline: none; }
-    .volume-slider-popup { position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%); width: 130px; background: rgba(30, 30, 30, 0.97); border-radius: 6px; padding: 10px 15px; box-shadow: 0 -2px 10px rgba(0, 255, 0, 0.25); opacity: 0; pointer-events: none; transition: opacity 0.15s ease; z-index: 21; }
-    .volume-container:hover .volume-slider-popup, .volume-container:focus-within .volume-slider-popup { opacity: 1; pointer-events: auto; }
-    .volume-input-horizontal { width: 100%; height: 16px; margin: 0; }
-    .volume-input-horizontal::-webkit-slider-runnable-track { height: 8px; background: linear-gradient( to right, #22ff00 0%, #00cc00 var(--volume-fill, 50%), #555 var(--volume-fill, 50%), #555 100% ); border-radius: 4px; }
-    .volume-input-horizontal::-moz-range-track { height: 8px; background: linear-gradient( to right, #22ff00 0%, #00cc00 var(--volume-fill, 50%), #555 var(--volume-fill, 50%), #555 100% ); border-radius: 4px; }
-    .volume-input-horizontal::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: #22ff00; border-radius: 50%; margin-top: -5px; box-shadow: 0 0 6px #22ff00, 0 0 10px rgba(0, 255, 0, 0.4); transition: background 0.3s, transform 0.2s; }
-    .volume-input-horizontal::-webkit-slider-thumb:hover { background: #66ff66; transform: scale(1.15); }
-    .volume-input-horizontal::-moz-range-thumb { width: 18px; height: 18px; background: #22ff00; border: none; border-radius: 50%; box-shadow: 0 0 6px #22ff00, 0 0 10px rgba(0, 255, 0, 0.4); transition: background 0.3s, transform 0.2s; }
-    .volume-input-horizontal::-moz-range-thumb:hover { background: #66ff66; transform: scale(1.15); }
-    .submenu { position: absolute; right: 100%; top: -8px; background: rgba(0, 0, 0, 0.9); border-radius: 8px; padding: 8px; width: 120px; display: none; flex-direction: column; gap: 6px; box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); z-index: 21; }
-    .option:hover .submenu { display: flex; }
-    .submenu-item { padding: 6px 10px; color: #ccc; font-size: 13px; cursor: pointer; border-radius: 4px; transition: background 0.2s ease; }
-    .submenu-item:hover { background: rgba(255, 255, 255, 0.1); }
-    .submenu-item.selected { color: #22ff00; font-weight: bold; }
-    #notifier { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #22ff00; color: #000; padding: 8px 20px; border-radius: 20px; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; font-weight: bold; font-size: 14px; z-index: 9999; }
-    #notifier.show { opacity: 1; pointer-events: auto; }
-    .loading-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 5; }
-    .player-container:-webkit-full-screen .loading-overlay, .player-container:fullscreen .loading-overlay { border-radius: 0; }
-    .loading-overlay.show { opacity: 1; pointer-events: auto; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #22ff00; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .error-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #f00; font-weight: bold; font-size: 16px; text-align: center; padding: 20px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 5; }
-    .player-container:-webkit-full-screen .error-overlay, .player-container:fullscreen .error-overlay { border-radius: 0; }
-    .error-overlay.show { opacity: 1; pointer-events: auto; }
-    .custom-url-loader { margin-top: 20px; display: flex; gap: 10px; justify-content: center; align-items: center; width: 90%; max-width: 700px; margin-left: auto; margin-right: auto; }
-    #customUrlInput { flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #444; background-color: #222; color: #eee; font-size: 14px; }
-    #customUrlInput:focus { outline: 1px solid #0f0; border-color: #0f0; }
-    #loadCustomUrlBtn { padding: 10px 15px; border-radius: 6px; border: none; background-color: #22ff00; color: #000; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-    #loadCustomUrlBtn:hover { background-color: #66ff66; }
-    @media (max-width: 600px) { .player-container { width: 95%; padding: 10px; } .controls { gap: 8px; padding: 8px 10px; } .btn { width: 40px; height: 40px; } svg { width: 28px; height: 28px; } .time { width: 50px; min-width: 50px; font-size: 12px; padding: 0 3px; } .options-menu { width: 150px; padding: 10px; } .submenu { width: 100px; } .volume-slider-popup { width: 110px; padding: 8px 10px; } .custom-url-loader { flex-direction: column; } #customUrlInput { width: 100%; } #loadCustomUrlBtn { width: 100%; margin-top: 8px;} }
-  </style>
+  <title>Polished Modern Video Player</title>
+  <!-- Link to your CSS file -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="player-container">
-    <video id="video" preload="metadata" aria-label="Video player"></video>
-    <div class="loading-overlay" id="loadingOverlay">
-      <div class="spinner"></div>
+  <div class="player-container" id="playerContainer">
+    <video id="video" preload="metadata" aria-label="Video player" playsinline></video> <!-- Added playsinline for better mobile experience -->
+
+    <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+      <div class="spinner" role="status" aria-label="Loading video"></div>
+      <span id="loadingPercentage" class="loading-text"></span>
     </div>
-    <div class="error-overlay" id="errorOverlay"></div>
-    <div class="controls">
-      <button class="btn" id="playPauseBtn" aria-label="Play"><svg id="playPauseIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></button>
-      <button class="btn" id="fullscreenBtn" aria-label="Enter Fullscreen"><svg id="fullscreenIcon" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"></path></svg></button>
-      <div class="progress-container">
-        <div class="time" id="currentTime">0:00</div>
-        <input type="range" id="seekbar" class="seekbar" value="0" min="0" max="100" step="0.1" aria-label="Seek video"/>
-        <div class="time" id="duration">0:00</div>
-      </div>
-      <div class="more-options-container">
-        <button class="btn" id="moreOptionsBtn" aria-label="More Options" aria-haspopup="true" aria-expanded="false" aria-controls="optionsMenu"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg></button>
-        <div class="options-menu" id="optionsMenu" aria-hidden="true">
-          <div class="option volume-container" id="volumeOption" tabindex="0">Volume<div class="volume-slider-popup" id="volumeSliderPopup"><input type="range" id="volumeSlider" class="volume-input-horizontal" min="0" max="1" step="0.01" value="0.5" aria-label="Volume"/></div></div>
-          <div class="option" id="speedOption">Playback Speed<div class="submenu" id="speedSubmenu"><div class="submenu-item" data-speed="0.5">0.5x</div><div class="submenu-item selected" data-speed="1">1x</div><div class="submenu-item" data-speed="1.5">1.5x</div><div class="submenu-item" data-speed="2">2x</div></div></div>
-          <div class="option" id="qualityOption">Quality<div class="submenu" id="qualitySubmenu"><div class="submenu-item selected" data-level="-1">Auto</div></div></div>
+    <div class="error-overlay" id="errorOverlay" role="alert" aria-hidden="true"></div>
+
+    <div class="controls-overlay" id="controlsOverlay">
+      <div class="progress-time-container seekbar-main-container">
+        <div class="seekbar-container" id="seekbarContainer">
+          <div class="seekbar-track"></div>
+          <div class="seekbar-buffered-progress" id="seekbarBufferedProgress"></div>
+          <input type="range" id="seekbar" class="seekbar" value="0" min="0" max="100" step="0.01" aria-label="Seek video" aria-valuenow="0" aria-valuetext="0:00"/>
+          <div class="seekbar-tooltip" id="seekbarTooltip" role="tooltip" aria-hidden="true">0:00</div>
         </div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="playPauseBtn" aria-label="Play" aria-pressed="false">
+            <svg id="playPauseIcon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+            <span class="control-tooltip" role="tooltip">Play</span>
+        </button>
+
+        <div class="volume-area">
+            <button class="btn" id="volumeBtn" aria-label="Mute" aria-haspopup="true" aria-expanded="false">
+                <svg id="volumeIcon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+                <span class="control-tooltip" role="tooltip">Mute</span>
+            </button>
+            <div class="volume-slider-wrapper" id="volumeSliderWrapper">
+                <input type="range" id="volumeRangeSlider" class="volume-slider-vertical" min="0" max="1" step="0.01" value="0.8" aria-label="Volume"/>
+            </div>
+        </div>
+        
+        <div class="time" id="currentTime" aria-live="off">0:00</div>
+        <span class="time-separator">/</span>
+        <div class="time duration-time" id="duration">0:00</div>
+        
+        <span class="spacer" style="flex-grow: 1;"></span>
+
+        <button class="btn pipBtn-class" id="pipBtn" aria-label="Enter Picture-in-Picture" style="display: none;" aria-pressed="false">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"></path></svg>
+            <span class="control-tooltip" role="tooltip">Picture-in-Picture</span>
+        </button>
+
+        <button class="btn" id="loopBtn" aria-label="Enable Loop" aria-pressed="false">
+            <svg id="loopIcon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path id="loopIconPath" d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"></path>
+            </svg>
+            <span class="control-tooltip" role="tooltip">Enable Loop</span>
+        </button>
+
+        <div class="control-popup-container">
+            <button class="btn" id="speedBtn" aria-label="Playback Speed" aria-haspopup="true" aria-expanded="false" aria-controls="speedMenu">
+                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1.5-11.5l4.08 4.08c-.38.78-.97 1.44-1.69 1.92L12 13V8.5zm1.5-1.68V4h-1v3.71l-3.11 3.11c-.06.06-.1.14-.1.22s.04.16.1.22l.03.03c.12.12.31.12.44 0L12 9.82l3.11 3.11c.12.12.31.12.44 0l.03-.03c.06-.06.1-.14.1-.22s-.04-.16-.1-.22L12 6.82z"></path>
+                </svg>
+                <span class="speed-indicator" id="speedIndicator" aria-hidden="true">1x</span>
+                <span class="control-tooltip" role="tooltip">Playback Speed</span>
+            </button>
+            <div class="control-popup menu speed-menu" id="speedMenu" role="menu" aria-hidden="true" aria-labelledby="speedBtn">
+                <div class="menu-item" role="menuitemradio" aria-checked="false" data-speed="0.25">0.25x</div>
+                <div class="menu-item" role="menuitemradio" aria-checked="false" data-speed="0.5">0.5x</div>
+                <div class="menu-item selected" role="menuitemradio" aria-checked="true" data-speed="1">Normal</div>
+                <div class="menu-item" role="menuitemradio" aria-checked="false" data-speed="1.25">1.25x</div>
+                <div class="menu-item" role="menuitemradio" aria-checked="false" data-speed="1.5">1.5x</div>
+                <div class="menu-item" role="menuitemradio" aria-checked="false" data-speed="2">2x</div>
+            </div>
+        </div>
+        
+        <div class="control-popup-container">
+            <button class="btn" id="qualityBtn" aria-label="Quality Settings" aria-haspopup="true" aria-expanded="false" aria-controls="qualityMenu" style="display: none;">
+                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"></path>
+                </svg>
+                <span class="control-tooltip" role="tooltip">Quality</span>
+            </button>
+            <div class="control-popup menu quality-menu" id="qualityMenu" role="menu" aria-hidden="true" aria-labelledby="qualityBtn">
+                <div class="menu-item selected" role="menuitemradio" aria-checked="true" data-level="-1">Auto</div>
+            </div>
+        </div>
+
+        <button class="btn" id="fullscreenBtn" aria-label="Enter Fullscreen" aria-pressed="false">
+            <svg id="fullscreenIcon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"></path></svg>
+            <span class="control-tooltip" role="tooltip">Fullscreen</span>
+        </button>
       </div>
     </div>
   </div>
 
   <div class="custom-url-loader">
+    <label for="customUrlInput" class="sr-only">Custom Video URL</label>
     <input type="text" id="customUrlInput" placeholder="Enter HLS (.m3u8) or MP4 URL">
-    <button id="loadCustomUrlBtn">Load Video</button>
+    <button id="loadCustomUrlBtn" class="btn-load">Load Video</button> <!-- Added btn class for potential ripple -->
   </div>
 
-  <div id="notifier" aria-live="polite"></div>
+  <div id="notifier" role="status" aria-live="assertive" aria-atomic="true"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    (function () {
-      const video = document.getElementById('video');
-      const playPauseBtn = document.getElementById('playPauseBtn');
-      const playPauseIcon = document.getElementById('playPauseIcon').querySelector('path');
-      const fullscreenBtn = document.getElementById('fullscreenBtn');
-      const fullscreenIcon = document.getElementById('fullscreenIcon').querySelector('path');
-      const seekbar = document.getElementById('seekbar');
-      const currentTimeEl = document.getElementById('currentTime');
-      const durationEl = document.getElementById('duration');
-      const notifier = document.getElementById('notifier');
-      const loadingOverlay = document.getElementById('loadingOverlay');
-      const errorOverlay = document.getElementById('errorOverlay');
-      const playerContainer = document.querySelector('.player-container');
-      const controls = document.querySelector('.controls');
-      const moreOptionsBtn = document.getElementById('moreOptionsBtn');
-      const optionsMenu = document.getElementById('optionsMenu');
-      const volumeSlider = document.getElementById('volumeSlider');
-      const speedSubmenu = document.getElementById('speedSubmenu');
-      const qualitySubmenu = document.getElementById('qualitySubmenu');
-      const qualityOption = document.getElementById('qualityOption'); // For hiding/showing
-      const customUrlInput = document.getElementById('customUrlInput');
-      const loadCustomUrlBtn = document.getElementById('loadCustomUrlBtn');
-
-      let videoSrc = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-      const playPath = 'M8 5v14l11-7z';
-      const pausePath = 'M6 19h4V5H6zm8-14v14h4V5z';
-      const fsEnterPath = 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z';
-      const fsExitPath = 'M5 16h3v3H5v-3zm3-8H5v3h3V8zm11 8h-3v3h3v-3zm-3-8h3v3h-3V8z';
-
-      let notifierTimeout = null;
-      let controlsTimeout = null;
-      let hls = null;
-      let isMenuOpen = false;
-
-      function showNotifier(msg) { notifier.textContent = msg; notifier.classList.add('show'); clearTimeout(notifierTimeout); notifierTimeout = setTimeout(() => notifier.classList.remove('show'), 2000); }
-      function toggleLoading(show) { loadingOverlay.classList.toggle('show', show); }
-      function showError(msg) { errorOverlay.textContent = msg; errorOverlay.classList.add('show'); console.error("Player Error:", msg); }
-      function formatTime(time) { if (isNaN(time) || time === Infinity) return '0:00'; const m = Math.floor(time / 60), s = Math.floor(time % 60); return `${m}:${s<10?'0':''}${s}`; }
-      function updatePlayPauseIcon() { const p = video.paused || video.ended; playPauseIcon.setAttribute('d', p ? playPath : pausePath); playPauseBtn.setAttribute('aria-label', p ? 'Play' : 'Pause'); }
-      function updateFullscreenIcon() { const f = !!(document.fullscreenElement||document.webkitFullscreenElement); fullscreenIcon.setAttribute('d', f ? fsExitPath : fsEnterPath); fullscreenBtn.setAttribute('aria-label', f ? 'Exit Fullscreen' : 'Enter Fullscreen'); }
-      function updateVolumeSlider() { const vP = video.muted ? 0 : video.volume*100; volumeSlider.value = video.muted ? 0 : video.volume; volumeSlider.style.setProperty('--volume-fill', `${vP}%`); }
-
-      function toggleFullscreen() {
-        const isFs = !!(document.fullscreenElement||document.webkitFullscreenElement);
-        if (!isFs) {
-          if (playerContainer.requestFullscreen) playerContainer.requestFullscreen().catch(err => showError(`FS Error: ${err.message}`));
-          else if (playerContainer.webkitRequestFullscreen) playerContainer.webkitRequestFullscreen();
-        } else {
-          if (document.exitFullscreen) document.exitFullscreen().catch(err => showError(`FS Error: ${err.message}`));
-          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        }
-      }
-
-      function updateSeekbar() { if (!video.duration) return; const p = (video.currentTime / video.duration) * 100; seekbar.value = p; seekbar.style.setProperty('--seekbar-fill', `${p}%`); currentTimeEl.textContent = formatTime(video.currentTime); }
-      function createRipple(e) { const b = e.currentTarget, r = b.querySelector('.ripple'); if (r) r.remove(); const nR = document.createElement('span'); nR.classList.add('ripple'); const rect = b.getBoundingClientRect(), s = Math.max(rect.width, rect.height); nR.style.width = nR.style.height = `${s}px`; nR.style.left = `${e.clientX-rect.left-s/2}px`; nR.style.top = `${e.clientY-rect.top-s/2}px`; b.appendChild(nR); setTimeout(()=>nR.remove(),600); }
-      
-      function hideControlsAndMenu() {
-        if (document.fullscreenElement||document.webkitFullscreenElement) {
-          controls.classList.add('hidden');
-          playerContainer.classList.add('cursor-hidden'); 
-          if (isMenuOpen) toggleOptionsMenu(true);
-        }
-      }
-      function showControls() {
-        controls.classList.remove('hidden');
-        playerContainer.classList.remove('cursor-hidden'); 
-        clearTimeout(controlsTimeout);
-        if (document.fullscreenElement||document.webkitFullscreenElement) {
-          controlsTimeout = setTimeout(hideControlsAndMenu, 3000);
-        }
-      }
-      
-      function toggleOptionsMenu(forceClose = false) {
-        isMenuOpen = forceClose ? false : !isMenuOpen;
-        optionsMenu.classList.toggle('show', isMenuOpen);
-        moreOptionsBtn.setAttribute('aria-expanded', isMenuOpen.toString());
-        optionsMenu.setAttribute('aria-hidden', (!isMenuOpen).toString());
-        if (isMenuOpen) clearTimeout(controlsTimeout); 
-        else if (document.fullscreenElement||document.webkitFullscreenElement) showControls(); 
-      }
-
-      function updateQualitySubmenu(levels) {
-        qualitySubmenu.innerHTML = '<div class="submenu-item selected" data-level="-1">Auto</div>';
-        if (!levels || levels.length === 0) { qualityOption.style.display = 'none'; return; }
-        qualityOption.style.display = ''; 
-        levels.forEach((level, index) => {
-          const item = document.createElement('div'); item.className = 'submenu-item';
-          item.dataset.level = index.toString(); item.textContent = level.height ? `${level.height}p` : `Lvl ${index+1}`;
-          qualitySubmenu.appendChild(item);
-          item.addEventListener('click', () => {
-            hls.currentLevel = parseInt(item.dataset.level, 10);
-            qualitySubmenu.querySelectorAll('.submenu-item').forEach(el => el.classList.remove('selected'));
-            item.classList.add('selected'); showNotifier(`Quality: ${item.textContent}`); toggleOptionsMenu(true);
-          });
-        });
-      }
-      
-      function resetPlayerStateForNewUrl() {
-        if (hls) { hls.destroy(); hls = null; }
-        video.pause();
-        video.src = ''; video.removeAttribute('src'); 
-        
-        toggleLoading(false); errorOverlay.classList.remove('show'); errorOverlay.textContent = '';
-        currentTimeEl.textContent = '0:00'; durationEl.textContent = '0:00';
-        seekbar.value = 0; seekbar.style.setProperty('--seekbar-fill', `0%`);
-        updatePlayPauseIcon();
-        qualityOption.style.display = 'none'; 
-        qualitySubmenu.innerHTML = '<div class="submenu-item selected" data-level="-1">Auto</div>';
-      }
-      function loadMedia() { 
-        toggleLoading(true);
-        errorOverlay.classList.remove('show');
-        const urlLower = videoSrc.toLowerCase();
-
-        if (urlLower.includes('.m3u8')) {
-          qualityOption.style.display = ''; 
-          if (Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(videoSrc);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => { toggleLoading(false); updateQualitySubmenu(hls.levels); });
-            hls.on(Hls.Events.ERROR, (event, data) => { console.error('HLS.js Error:', data); if (data.fatal) { toggleLoading(false); switch (data.type) { case Hls.ErrorTypes.NETWORK_ERROR: showError(`Net err: ${data.details}.`); break; case Hls.ErrorTypes.MEDIA_ERROR: showError(`Media err: ${data.details}.`); hls.recoverMediaError(); break; default: showError(`HLS err: ${data.details}.`); break; } } else { showNotifier(`HLS Warn: ${data.details}`); } });
-            hls.on(Hls.Events.LEVEL_SWITCHED, (e,d) => { const l=hls.levels[d.level]; if(l) showNotifier(`Switched: ${l.height?l.height+'p':Math.round(l.bitrate/1000)+'kbps'}`);});
-          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = videoSrc; 
-          } else {
-            toggleLoading(false); showError('HLS is not supported.'); qualityOption.style.display = 'none';
-          }
-        } else if (urlLower.endsWith('.mp4') || urlLower.endsWith('.webm') || urlLower.endsWith('.ogv')) {
-          if (hls) { hls.destroy(); hls = null; } 
-          qualityOption.style.display = 'none'; 
-          video.src = videoSrc;
-          
-        } else {
-          
-            if (Hls.isSupported()) {
-                showNotifier("Unknown URL type, trying HLS.js...");
-                qualityOption.style.display = '';
-                hls = new Hls();
-                hls.loadSource(videoSrc);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => { toggleLoading(false); updateQualitySubmenu(hls.levels); });
-                hls.on(Hls.Events.ERROR, (event, data) => { /* Simplified: If HLS fails here, then try direct src */
-                    console.warn('HLS.js failed for unknown type, trying direct src:', data);
-                    if (hls) { hls.destroy(); hls = null; }
-                    qualityOption.style.display = 'none';
-                    video.src = videoSrc; 
-                    toggleLoading(false); 
-                });
-            } else {
-                 qualityOption.style.display = 'none';
-                 video.src = videoSrc; 
-            }
-        }
-      }
-
-      
-      playPauseBtn.addEventListener('click', (e) => { createRipple(e); if(video.readyState===0 && !video.src) loadMedia(); if (video.paused||video.ended) video.play().catch(err => {showError(`Playback fail: ${err.message}`); showNotifier('Playback fail');}); else video.pause(); showControls(); });
-      fullscreenBtn.addEventListener('click', (e) => { createRipple(e); toggleFullscreen(); showControls(); });
-      moreOptionsBtn.addEventListener('click', (e) => { createRipple(e); toggleOptionsMenu(); });
-      video.addEventListener('click', (e) => { if (e.target === video) playPauseBtn.click(); });
-
-      volumeSlider.addEventListener('input', () => { video.volume = parseFloat(volumeSlider.value); video.muted = video.volume===0; updateVolumeSlider(); showControls(); });
-      seekbar.addEventListener('input', () => { if(!video.duration) return; const sT=(parseFloat(seekbar.value)/100)*video.duration; currentTimeEl.textContent=formatTime(sT); showControls(); });
-      seekbar.addEventListener('change', () => { if(!video.duration) return; const sT=(parseFloat(seekbar.value)/100)*video.duration; video.currentTime=sT; showNotifier(`Seek: ${formatTime(sT)}`); showControls(); });
-      speedSubmenu.querySelectorAll('.submenu-item').forEach(item => { item.addEventListener('click', () => { video.playbackRate=parseFloat(item.dataset.speed); speedSubmenu.querySelectorAll('.submenu-item').forEach(el => el.classList.remove('selected')); item.classList.add('selected'); showNotifier(`Speed: ${item.textContent}`); toggleOptionsMenu(true); }); });
-      
-      video.addEventListener('play', () => { updatePlayPauseIcon(); showNotifier('Playing'); toggleLoading(false);});
-      video.addEventListener('pause', () => { updatePlayPauseIcon(); showNotifier('Paused'); toggleLoading(false);});
-      video.addEventListener('ended', () => { updatePlayPauseIcon(); showNotifier('Video Ended'); toggleLoading(false);});
-      video.addEventListener('timeupdate', updateSeekbar);
-      video.addEventListener('loadedmetadata', () => { durationEl.textContent=formatTime(video.duration); updateSeekbar(); updateVolumeSlider(); toggleLoading(false); errorOverlay.classList.remove('show'); });
-      video.addEventListener('volumechange', () => { updateVolumeSlider(); if (!video.muted && document.activeElement !== volumeSlider) showNotifier(`Volume: ${(video.volume*100).toFixed(0)}%`); });
-      video.addEventListener('waiting', () => toggleLoading(true));
-      video.addEventListener('playing', () => toggleLoading(false));
-      video.addEventListener('error', () => { toggleLoading(false); const err=video.error; showError(`Video Err: Code ${err.code}, ${err.message}`); if(hls) hls.destroy(); hls=null; qualityOption.style.display = 'none'; });
-
-      ['fullscreenchange', 'webkitfullscreenchange'].forEach(evt => { document.addEventListener(evt, () => { const isFs=!!(document.fullscreenElement||document.webkitFullscreenElement); updateFullscreenIcon(); showControls(); showNotifier(isFs ? 'Entered Fullscreen' : 'Exited Fullscreen'); if(!isFs) playerContainer.classList.remove('cursor-hidden'); /* Ensure cursor visible on exit */ }); });
-      
-      playerContainer.addEventListener('mousemove', showControls);
-      playerContainer.addEventListener('mouseleave', () => { if (document.fullscreenElement||document.webkitFullscreenElement) { if (!controls.matches(':hover') && (!isMenuOpen || !optionsMenu.matches(':hover'))) { clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControlsAndMenu, 1000);}}});
-      controls.addEventListener('mouseenter', () => { if (document.fullscreenElement||document.webkitFullscreenElement) { clearTimeout(controlsTimeout); playerContainer.classList.remove('cursor-hidden'); /* Show cursor when over controls */ } });
-      controls.addEventListener('mouseleave', () => { if (document.fullscreenElement||document.webkitFullscreenElement) showControls(); /* Restart hide timer for controls and cursor */ });
-
-      document.addEventListener('keydown', (e) => {
-        const aE=document.activeElement, iF=aE&&(aE.tagName==='INPUT'||aE.tagName==='TEXTAREA'||aE.isContentEditable), rF=aE&&aE.type==='range';
-        if(rF && (e.key.startsWith('Arrow'))) return; if(e.key===' ' && aE && aE.tagName==='BUTTON') return;
-        if(iF && !['Escape','F11','KeyF'].includes(e.code) && e.key.toLowerCase()!=='f') return;
-        showControls(); 
-        switch(e.key.toLowerCase()){
-          case ' ': case 'k': e.preventDefault(); playPauseBtn.click(); break;
-          case 'f': e.preventDefault(); fullscreenBtn.click(); break;
-          case 'm': e.preventDefault(); video.muted=!video.muted; showNotifier(video.muted?'Muted':'Unmuted'); updateVolumeSlider(); break;
-          case 'arrowleft': e.preventDefault(); if(!video.duration) return; video.currentTime=Math.max(0,video.currentTime-5); showNotifier(`Seek Back: ${formatTime(video.currentTime)}`); updateSeekbar(); break;
-          case 'arrowright': e.preventDefault(); if(!video.duration) return; video.currentTime=Math.min(video.duration,video.currentTime+5); showNotifier(`Seek Fwd: ${formatTime(video.currentTime)}`); updateSeekbar(); break;
-          case 'arrowup': e.preventDefault(); video.volume=Math.min(1,video.volume+0.1); video.muted=false; updateVolumeSlider(); break;
-          case 'arrowdown': e.preventDefault(); video.volume=Math.max(0,video.volume-0.1); video.muted=video.volume===0; updateVolumeSlider(); break;
-          case 'escape': if(isMenuOpen) {e.preventDefault(); toggleOptionsMenu(true);} else if (document.fullscreenElement||document.webkitFullscreenElement) {e.preventDefault(); toggleFullscreen();} break;
-        }
-      });
-      
-      document.addEventListener('click', (e) => { if (isMenuOpen && !optionsMenu.contains(e.target) && e.target!==moreOptionsBtn && !moreOptionsBtn.contains(e.target) && !document.getElementById('volumeSliderPopup').contains(e.target)) toggleOptionsMenu(true); });
-
-      loadCustomUrlBtn.addEventListener('click', () => {
-        const newUrl = customUrlInput.value.trim();
-        if (newUrl) {
-            showNotifier(`Loading: ${newUrl.length > 40 ? newUrl.substring(0,37)+'...' : newUrl}`);
-            resetPlayerStateForNewUrl();
-            videoSrc = newUrl;
-            loadMedia();
-        } else {
-            showNotifier("Please enter a URL.");
-        }
-      });
-
-      
- video.volume = 1; updateVolumeSlider(); updatePlayPauseIcon(); updateFullscreenIcon();
-      loadMedia(); showControls();
-
-    })();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script> <!-- Using minified HLS.js -->
+  <!-- Link to your JS file -->
+  <script src="script.js"></script>
 </body>
 </html>
